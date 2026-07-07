@@ -12,7 +12,9 @@ The repo must contain `gui/app.py` and `requirements.txt`.
 
 ## 2. Create an Azure app registration (free — no subscription needed)
 
-In [Microsoft Entra admin center](https://entra.microsoft.com):
+**Full walkthrough:** [ENTRA_APP_SETUP.md](ENTRA_APP_SETUP.md)
+
+Quick version in [Microsoft Entra admin center](https://entra.microsoft.com):
 
 1. **App registrations** → **New registration**
    - Name: `amusa-immutable-id-gui`
