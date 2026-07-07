@@ -10,7 +10,7 @@ Use branch `cursor/azure-immutable-id-a5bb` (or `main` after [PR #2](https://git
 
 The repo must contain `gui/app.py` and `requirements.txt`.
 
-## 2. Create an Azure app registration
+## 2. Create an Azure app registration (free — no subscription needed)
 
 In [Microsoft Entra admin center](https://entra.microsoft.com):
 
@@ -29,7 +29,7 @@ In [Microsoft Entra admin center](https://entra.microsoft.com):
 2. Click **Create app**
 3. Configure:
    - **Repository:** `amusa-allvuesystems/amusa`
-   - **Branch:** `main`
+   - **Branch:** `cursor/azure-immutable-id-a5bb` (or `main` if merged)
    - **Main file path:** `gui/app.py`
 4. Click **Advanced settings** if needed (Python 3.11+ is fine)
 5. Open **Secrets** and paste:
@@ -40,7 +40,16 @@ AZURE_CLIENT_ID = "your-app-client-id"
 AZURE_CLIENT_SECRET = "your-client-secret"
 ```
 
-6. Click **Deploy**
+Or nested format:
+
+```toml
+[azure]
+tenant_id = "your-tenant-id"
+client_id = "your-app-client-id"
+client_secret = "your-client-secret"
+```
+
+6. Click **Deploy**, then **Reboot app** if you add or change secrets later
 
 Deployment usually takes 2–5 minutes. Streamlit gives you a public URL.
 
@@ -57,21 +66,22 @@ Team members can:
 
 No `az login` required — the app uses the service principal from secrets.
 
-## 5. Restrict access (recommended)
+## 5. Security note
 
-Streamlit Community Cloud free tier apps are public URLs. Options:
+Free Streamlit apps have a **public URL** (anyone with the link can open it). Mitigations:
 
-- **Streamlit Teams** (paid): private apps and SSO
-- **Don't put sensitive data in the repo** — only secrets in the Streamlit dashboard
-- Rotate the client secret periodically in Entra and update Streamlit secrets
+- Don't share the URL outside your team
+- Only store credentials in Streamlit **Secrets** (never in the repo)
+- Rotate the Entra client secret periodically
 
-For strict Entra-only access, use Azure App Service with authentication instead (see README).
+For Entra-only login on the website itself, you'd need paid Streamlit Teams or Azure App Service.
 
 ## Troubleshooting
 
 | Issue | Fix |
 |-------|-----|
 | App won't start | Check deploy logs in Streamlit Cloud → Manage app → Logs |
+| `Authentication failed: DefaultAzureCredential` | Secrets not loaded — add them in Streamlit Cloud → Settings → Secrets, then **Reboot app**. Use branch `cursor/azure-immutable-id-a5bb`. |
 | `Authentication failed` | Verify tenant/client/secret in Secrets; confirm admin consent for `User.Read.All` |
 | `403` / insufficient privileges | App registration needs **Application** permission `User.Read.All` with admin consent |
 | `User not found` | Check UPN/email matches Entra ID exactly |

@@ -19,6 +19,8 @@ from gui.secrets import (  # noqa: E402
     default_auth_mode,
     hosted_platform_name,
     is_hosted_deployment,
+    resolve_auth_mode,
+    secrets_status_message,
     service_principal_configured,
 )
 
@@ -90,7 +92,7 @@ def main() -> None:
         else:
             auth_options = ["default", "browser"]
             if service_principal_configured():
-                auth_options.insert(1, "service_principal")
+                auth_options.insert(0, "service_principal")
 
             auth_mode = st.radio(
                 "Sign-in method",
@@ -108,6 +110,8 @@ def main() -> None:
                     "Service principal uses AZURE_TENANT_ID, AZURE_CLIENT_ID, and AZURE_CLIENT_SECRET."
                 ),
             )
+
+        st.caption(secrets_status_message())
 
         st.divider()
         st.markdown(
@@ -172,9 +176,16 @@ jane.doe@example.com
 
     st.write(f"**{len(user_identifiers)}** user(s) ready to look up.")
 
-    secrets_ready = service_principal_configured() or not is_hosted_deployment()
-    if is_hosted_deployment() and not service_principal_configured():
-        st.warning("Configure Azure credentials in app settings before lookups will work.")
+    secrets_ready = service_principal_configured() or (
+        not is_hosted_deployment() and auth_mode != "service_principal"
+    )
+    if not service_principal_configured() and (
+        is_hosted_deployment() or auth_mode == "service_principal"
+    ):
+        st.warning(
+            "Azure credentials are not loaded. Add secrets in Streamlit Cloud "
+            "(Manage app → Settings → Secrets), then reboot the app."
+        )
 
     if st.button(
         "Fetch immutable IDs",
@@ -183,7 +194,8 @@ jane.doe@example.com
     ):
         with st.spinner("Authenticating and querying Microsoft Graph..."):
             try:
-                token = get_graph_token(auth_mode)
+                effective_auth_mode = resolve_auth_mode(auth_mode)
+                token = get_graph_token(effective_auth_mode)
                 results = fetch_immutable_ids(token, user_identifiers)
             except Exception as exc:  # noqa: BLE001 - surface auth errors in the UI
                 st.error(f"Authentication failed: {exc}")

@@ -47,6 +47,16 @@ def build_credential(auth_mode: str):
 
 
 def get_graph_token(auth_mode: str) -> str:
+    if auth_mode == "service_principal":
+        missing = [
+            key for key in ("AZURE_TENANT_ID", "AZURE_CLIENT_ID", "AZURE_CLIENT_SECRET")
+            if not os.environ.get(key)
+        ]
+        if missing:
+            raise ValueError(
+                f"Service principal credentials missing: {', '.join(missing)}"
+            )
+
     credential = build_credential(auth_mode)
     return credential.get_token(GRAPH_SCOPE).token
 
