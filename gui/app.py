@@ -17,7 +17,8 @@ from gui.azure_graph import fetch_immutable_ids, get_graph_token  # noqa: E402
 from gui.secrets import (  # noqa: E402
     apply_streamlit_secrets,
     default_auth_mode,
-    is_streamlit_cloud,
+    hosted_platform_name,
+    is_hosted_deployment,
     service_principal_configured,
 )
 
@@ -75,14 +76,15 @@ def main() -> None:
 
     with st.sidebar:
         st.header("Authentication")
-        if is_streamlit_cloud():
+        if is_hosted_deployment():
+            platform = hosted_platform_name() or "hosted environment"
             if service_principal_configured():
-                st.success("Connected via Azure app registration")
+                st.success(f"Connected via Azure app registration ({platform})")
                 auth_mode = "service_principal"
             else:
                 st.error(
-                    "Azure secrets missing. Add AZURE_TENANT_ID, AZURE_CLIENT_ID, "
-                    "and AZURE_CLIENT_SECRET in Streamlit Cloud → Settings → Secrets."
+                    "Azure credentials missing. Set AZURE_TENANT_ID, AZURE_CLIENT_ID, "
+                    "and AZURE_CLIENT_SECRET in app settings (App Service) or Secrets (Streamlit Cloud)."
                 )
                 auth_mode = "service_principal"
         else:
@@ -170,9 +172,9 @@ jane.doe@example.com
 
     st.write(f"**{len(user_identifiers)}** user(s) ready to look up.")
 
-    secrets_ready = service_principal_configured() or not is_streamlit_cloud()
-    if is_streamlit_cloud() and not service_principal_configured():
-        st.warning("Configure Azure secrets before lookups will work.")
+    secrets_ready = service_principal_configured() or not is_hosted_deployment()
+    if is_hosted_deployment() and not service_principal_configured():
+        st.warning("Configure Azure credentials in app settings before lookups will work.")
 
     if st.button(
         "Fetch immutable IDs",
