@@ -15,13 +15,14 @@ if str(ROOT) not in sys.path:
 
 from gui.azure_graph import fetch_immutable_ids, get_graph_token  # noqa: E402
 from gui.secrets import (  # noqa: E402
+    SECRETS_TEMPLATE,
     apply_streamlit_secrets,
     default_auth_mode,
     hosted_platform_name,
-    is_hosted_deployment,
     resolve_auth_mode,
     secrets_status_message,
     service_principal_configured,
+    use_managed_auth_ui,
 )
 
 USER_COLUMN_CANDIDATES = (
@@ -78,38 +79,36 @@ def main() -> None:
 
     with st.sidebar:
         st.header("Authentication")
-        if is_hosted_deployment():
-            platform = hosted_platform_name() or "hosted environment"
+        if use_managed_auth_ui():
+            platform = hosted_platform_name() or "Streamlit Cloud"
             if service_principal_configured():
-                st.success(f"Connected via Azure app registration ({platform})")
+                st.success(f"Using Azure app registration ({platform})")
                 auth_mode = "service_principal"
             else:
-                st.error(
-                    "Azure credentials missing. Set AZURE_TENANT_ID, AZURE_CLIENT_ID, "
-                    "and AZURE_CLIENT_SECRET in app settings (App Service) or Secrets (Streamlit Cloud)."
+                st.error("Azure credentials not loaded yet.")
+                st.markdown(
+                    "In Streamlit Cloud go to **Manage app → Settings → Secrets**, "
+                    "paste this, save, then **Reboot app**:"
                 )
+                st.code(SECRETS_TEMPLATE, language="toml")
                 auth_mode = "service_principal"
         else:
-            auth_options = ["default", "browser"]
-            if service_principal_configured():
-                auth_options.insert(0, "service_principal")
-
             auth_mode = st.radio(
                 "Sign-in method",
-                options=auth_options,
-                index=auth_options.index(default_auth_mode())
-                if default_auth_mode() in auth_options
-                else 0,
+                options=["service_principal", "browser", "default"],
+                index=["service_principal", "browser", "default"].index(default_auth_mode()),
                 format_func=lambda value: {
-                    "default": "Default (Azure CLI / existing login)",
+                    "default": "Azure CLI (run az login first)",
                     "browser": "Interactive browser login",
-                    "service_principal": "Service principal (env vars / secrets)",
+                    "service_principal": "App registration (recommended)",
                 }[value],
-                help=(
-                    "Default uses Azure CLI credentials after `az login`. "
-                    "Service principal uses AZURE_TENANT_ID, AZURE_CLIENT_ID, and AZURE_CLIENT_SECRET."
-                ),
             )
+
+            if auth_mode == "service_principal":
+                st.info(
+                    "Set credentials in `.streamlit/secrets.toml` locally, or in "
+                    "Streamlit Cloud → Settings → Secrets."
+                )
 
         st.caption(secrets_status_message())
 
@@ -176,16 +175,9 @@ jane.doe@example.com
 
     st.write(f"**{len(user_identifiers)}** user(s) ready to look up.")
 
-    secrets_ready = service_principal_configured() or (
-        not is_hosted_deployment() and auth_mode != "service_principal"
-    )
-    if not service_principal_configured() and (
-        is_hosted_deployment() or auth_mode == "service_principal"
-    ):
-        st.warning(
-            "Azure credentials are not loaded. Add secrets in Streamlit Cloud "
-            "(Manage app → Settings → Secrets), then reboot the app."
-        )
+    secrets_ready = service_principal_configured() or not use_managed_auth_ui()
+    if use_managed_auth_ui() and not service_principal_configured():
+        st.warning("Add Azure secrets in Streamlit Cloud, reboot the app, then try again.")
 
     if st.button(
         "Fetch immutable IDs",
