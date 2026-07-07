@@ -4,14 +4,13 @@ Utilities for working with Microsoft Entra ID (Azure AD) immutable IDs.
 
 ## Deploy for your team (free)
 
-**Use [Streamlit Community Cloud](DEPLOY_STREAMLIT.md)** — free hosting, no Azure subscription needed.
+| Method | Admin consent? | Guide |
+|--------|----------------|-------|
+| **ObjectGUID converter on Streamlit Cloud** | **No** | [PUBLISH_WITHOUT_ADMIN.md](PUBLISH_WITHOUT_ADMIN.md) |
+| Entra Graph lookup | Yes (IT declined) | [DEPLOY_STREAMLIT.md](DEPLOY_STREAMLIT.md) |
+| Azure App Service | Yes + subscription | [DEPLOY_AZURE.md](DEPLOY_AZURE.md) |
 
-You only need a free Entra app registration (no cost) for Graph API access.
-
-| Platform | Cost | Guide |
-|----------|------|-------|
-| **Streamlit Cloud** | Free | **[DEPLOY_STREAMLIT.md](DEPLOY_STREAMLIT.md)** |
-| Azure App Service | ~$18/month | [DEPLOY_AZURE.md](DEPLOY_AZURE.md) |
+**If IT won't grant consent:** use the **Convert ObjectGUID** tab — publish on Streamlit Cloud with no secrets.
 
 ## GUI (CSV upload)
 
