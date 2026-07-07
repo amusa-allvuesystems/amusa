@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import io
-import os
 import sys
 from pathlib import Path
 
@@ -15,6 +14,12 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from gui.azure_graph import fetch_immutable_ids, get_graph_token  # noqa: E402
+from gui.secrets import (  # noqa: E402
+    apply_streamlit_secrets,
+    default_auth_mode,
+    is_streamlit_cloud,
+    service_principal_configured,
+)
 
 USER_COLUMN_CANDIDATES = (
     "userprincipalname",
@@ -56,12 +61,9 @@ def results_to_dataframe(results) -> pd.DataFrame:
     )
 
 
-def service_principal_configured() -> bool:
-    required = ("AZURE_TENANT_ID", "AZURE_CLIENT_ID", "AZURE_CLIENT_SECRET")
-    return all(os.environ.get(name) for name in required)
-
-
 def main() -> None:
+    apply_streamlit_secrets()
+
     st.set_page_config(
         page_title="Entra Immutable ID Lookup",
         page_icon="🔐",
@@ -73,23 +75,37 @@ def main() -> None:
 
     with st.sidebar:
         st.header("Authentication")
-        auth_options = ["default", "browser"]
-        if service_principal_configured():
-            auth_options.insert(1, "service_principal")
+        if is_streamlit_cloud():
+            if service_principal_configured():
+                st.success("Connected via Azure app registration")
+                auth_mode = "service_principal"
+            else:
+                st.error(
+                    "Azure secrets missing. Add AZURE_TENANT_ID, AZURE_CLIENT_ID, "
+                    "and AZURE_CLIENT_SECRET in Streamlit Cloud → Settings → Secrets."
+                )
+                auth_mode = "service_principal"
+        else:
+            auth_options = ["default", "browser"]
+            if service_principal_configured():
+                auth_options.insert(1, "service_principal")
 
-        auth_mode = st.radio(
-            "Sign-in method",
-            options=auth_options,
-            format_func=lambda value: {
-                "default": "Default (Azure CLI / existing login)",
-                "browser": "Interactive browser login",
-                "service_principal": "Service principal (env vars)",
-            }[value],
-            help=(
-                "Default uses Azure CLI credentials after `az login`. "
-                "Service principal uses AZURE_TENANT_ID, AZURE_CLIENT_ID, and AZURE_CLIENT_SECRET."
-            ),
-        )
+            auth_mode = st.radio(
+                "Sign-in method",
+                options=auth_options,
+                index=auth_options.index(default_auth_mode())
+                if default_auth_mode() in auth_options
+                else 0,
+                format_func=lambda value: {
+                    "default": "Default (Azure CLI / existing login)",
+                    "browser": "Interactive browser login",
+                    "service_principal": "Service principal (env vars / secrets)",
+                }[value],
+                help=(
+                    "Default uses Azure CLI credentials after `az login`. "
+                    "Service principal uses AZURE_TENANT_ID, AZURE_CLIENT_ID, and AZURE_CLIENT_SECRET."
+                ),
+            )
 
         st.divider()
         st.markdown(
@@ -154,7 +170,15 @@ jane.doe@example.com
 
     st.write(f"**{len(user_identifiers)}** user(s) ready to look up.")
 
-    if st.button("Fetch immutable IDs", type="primary", disabled=not user_identifiers):
+    secrets_ready = service_principal_configured() or not is_streamlit_cloud()
+    if is_streamlit_cloud() and not service_principal_configured():
+        st.warning("Configure Azure secrets before lookups will work.")
+
+    if st.button(
+        "Fetch immutable IDs",
+        type="primary",
+        disabled=not user_identifiers or not secrets_ready,
+    ):
         with st.spinner("Authenticating and querying Microsoft Graph..."):
             try:
                 token = get_graph_token(auth_mode)

@@ -2,6 +2,17 @@
 
 Utilities for working with Microsoft Entra ID (Azure AD) immutable IDs.
 
+## Deploy for your team (Streamlit Cloud)
+
+See **[DEPLOY_STREAMLIT.md](DEPLOY_STREAMLIT.md)** for step-by-step instructions to publish at a shared URL like `https://your-app.streamlit.app`.
+
+Quick summary:
+
+1. Merge the GUI to `main`
+2. Create an Azure app registration with Graph `User.Read.All` (application permission)
+3. Deploy at [share.streamlit.io](https://share.streamlit.io) with main file `gui/app.py`
+4. Add secrets: `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`
+
 ## GUI (CSV upload)
 
 Web UI for batch lookups from a CSV file or pasted user list.
