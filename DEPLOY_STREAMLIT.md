@@ -1,10 +1,14 @@
-# Deploy to Streamlit Community Cloud
+# Deploy to Streamlit Community Cloud (free)
 
 Share the immutable ID lookup GUI with your team at a URL like `https://your-app.streamlit.app`.
 
-## 1. Merge the code to `main`
+**Cost:** Streamlit Community Cloud is **free**. You do **not** need an Azure subscription — only a free Entra app registration to call Microsoft Graph.
 
-Merge [PR #2](https://github.com/amusa-allvuesystems/amusa/pull/2) (or ensure `main` contains `gui/app.py` and `requirements.txt`).
+## 1. Get the code on GitHub
+
+Use branch `cursor/azure-immutable-id-a5bb` (or `main` after [PR #2](https://github.com/amusa-allvuesystems/amusa/pull/2) is merged).
+
+The repo must contain `gui/app.py` and `requirements.txt`.
 
 ## 2. Create an Azure app registration
 

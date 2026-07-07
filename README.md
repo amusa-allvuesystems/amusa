@@ -2,14 +2,16 @@
 
 Utilities for working with Microsoft Entra ID (Azure AD) immutable IDs.
 
-## Deploy for your team
+## Deploy for your team (free)
 
-| Platform | Guide | Best for |
-|----------|-------|----------|
-| **Azure App Service** | **[DEPLOY_AZURE.md](DEPLOY_AZURE.md)** | Production, Entra-only access, Allvue tenant |
-| Streamlit Cloud | [DEPLOY_STREAMLIT.md](DEPLOY_STREAMLIT.md) | Quick public pilot |
+**Use [Streamlit Community Cloud](DEPLOY_STREAMLIT.md)** — free hosting, no Azure subscription needed.
 
-**Recommended for Allvue:** Azure App Service with Entra authentication → `https://your-app.azurewebsites.net`
+You only need a free Entra app registration (no cost) for Graph API access.
+
+| Platform | Cost | Guide |
+|----------|------|-------|
+| **Streamlit Cloud** | Free | **[DEPLOY_STREAMLIT.md](DEPLOY_STREAMLIT.md)** |
+| Azure App Service | ~$18/month | [DEPLOY_AZURE.md](DEPLOY_AZURE.md) |
 
 ## GUI (CSV upload)
 
