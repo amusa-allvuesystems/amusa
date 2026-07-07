@@ -2,7 +2,32 @@
 
 Utilities for working with Microsoft Entra ID (Azure AD) immutable IDs.
 
-## Get immutable ID from Azure
+## GUI (CSV upload)
+
+Web UI for batch lookups from a CSV file or pasted user list.
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+az login
+streamlit run gui/app.py
+```
+
+Open the URL shown in the terminal (usually http://localhost:8501).
+
+1. Upload a CSV with a `userPrincipalName`, `email`, or similar column (see `sample_users.csv`)
+2. Choose the user identifier column
+3. Click **Fetch immutable IDs**
+4. Download results as CSV
+
+Authentication options in the sidebar:
+
+- **Default** — uses Azure CLI after `az login`
+- **Interactive browser** — opens a browser sign-in flow
+- **Service principal** — available when `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, and `AZURE_CLIENT_SECRET` are set
+
+## Get immutable ID from Azure (CLI)
 
 Requires [Azure CLI](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli) and Graph API access (`User.Read.All` or `Directory.Read.All`).
 
