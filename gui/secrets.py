@@ -7,6 +7,7 @@ import shutil
 from pathlib import Path
 
 import streamlit as st
+from streamlit.errors import StreamlitSecretNotFoundError
 
 AZURE_SECRET_KEYS = ("AZURE_TENANT_ID", "AZURE_CLIENT_ID", "AZURE_CLIENT_SECRET")
 
@@ -56,16 +57,30 @@ def is_hosted_deployment() -> bool:
     return is_streamlit_cloud() or is_azure_app_service()
 
 
+def _streamlit_secrets():
+    try:
+        return st.secrets
+    except StreamlitSecretNotFoundError:
+        return None
+
+
 def _read_secret_value(*keys: str) -> str | None:
+    secrets = _streamlit_secrets()
+    if secrets is None:
+        return None
+
     for key in keys:
-        if key in st.secrets:
-            value = st.secrets[key]
-            if value:
-                return str(value).strip()
-        if "azure" in st.secrets and key in st.secrets["azure"]:
-            value = st.secrets["azure"][key]
-            if value:
-                return str(value).strip()
+        try:
+            if key in secrets:
+                value = secrets[key]
+                if value:
+                    return str(value).strip()
+            if "azure" in secrets and key in secrets["azure"]:
+                value = secrets["azure"][key]
+                if value:
+                    return str(value).strip()
+        except StreamlitSecretNotFoundError:
+            return None
     return None
 
 
