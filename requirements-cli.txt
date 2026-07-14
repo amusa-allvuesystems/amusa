@@ -1,0 +1,2 @@
+# Minimal deps for local CLI (no Streamlit)
+pandas>=2.0.0

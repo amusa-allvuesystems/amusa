@@ -23,19 +23,58 @@ These can be the same app registration for a small internal tool, but separate r
 
 ## 1. Prerequisites
 
-- Azure subscription
+- Azure subscription **that is active** (not disabled)
 - [Azure CLI](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli): `az login`
 - Docker optional (Azure builds the image for you via ACR)
 
-Set variables (change names to something globally unique):
+### Pre-flight: verify your subscription is active
+
+**Run this before anything else.** A disabled subscription blocks all deploy commands.
+
+```bash
+az account show --query "{name:name, id:id, state:state}" -o table
+```
+
+You need `state` = **Enabled**. If you see:
+
+```text
+ReadOnlyDisabledSubscription ... is disabled and therefore marked as read only
+```
+
+**Stop here.** Ask your Allvue Azure administrator or IT billing team to:
+
+1. Re-enable subscription `Azure subscription 1`, or
+2. Grant you access to a different **active** subscription
+
+Check all subscriptions you can use:
+
+```bash
+az account list --query "[].{name:name, id:id, state:state}" -o table
+```
+
+Switch to an active one if available:
+
+```bash
+az account set --subscription "<subscription-id-or-name>"
+```
+
+### Set deployment variables
+
+Use **letters and numbers only** for `ACR_NAME` (no hyphens). Web app names can include hyphens.
 
 ```bash
 RESOURCE_GROUP="rg-amusa-immutable-id"
 LOCATION="westeurope"
-ACR_NAME="amusaimmutableidacr"        # letters/numbers only, globally unique
+ACR_NAME="amusaimmutableidacr01"      # 5-50 chars, alphanumeric only, globally unique
 APP_NAME="amusa-immutable-id"         # globally unique
 PLAN_NAME="asp-amusa-immutable-id"
-IMAGE_NAME="amusa-gui"
+IMAGE_NAME="amusagui"
+```
+
+Verify variables are set before continuing:
+
+```bash
+echo "RG=$RESOURCE_GROUP ACR=$ACR_NAME APP=$APP_NAME"
 ```
 
 ---
@@ -92,15 +131,15 @@ az webapp create \
   --resource-group "$RESOURCE_GROUP" \
   --plan "$PLAN_NAME" \
   --name "$APP_NAME" \
-  --deployment-container-image-name "${ACR_LOGIN_SERVER}/${IMAGE_NAME}:latest"
+  --container-image-name "${ACR_LOGIN_SERVER}/${IMAGE_NAME}:latest"
 
 az webapp config container set \
   --name "$APP_NAME" \
   --resource-group "$RESOURCE_GROUP" \
-  --docker-custom-image-name "${ACR_LOGIN_SERVER}/${IMAGE_NAME}:latest" \
-  --docker-registry-server-url "https://${ACR_LOGIN_SERVER}" \
-  --docker-registry-server-user "$ACR_USERNAME" \
-  --docker-registry-server-password "$ACR_PASSWORD"
+  --container-image-name "${ACR_LOGIN_SERVER}/${IMAGE_NAME}:latest" \
+  --container-registry-url "https://${ACR_LOGIN_SERVER}" \
+  --container-registry-user "$ACR_USERNAME" \
+  --container-registry-password "$ACR_PASSWORD"
 ```
 
 ---

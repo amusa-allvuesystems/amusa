@@ -13,7 +13,7 @@ source .venv/bin/activate
 pip install -q -r requirements.txt
 
 echo ""
-echo "Starting GUI at http://localhost:8501"
+echo "Starting Daily Attendance at http://localhost:8501"
 echo "Press Ctrl+C to stop."
 echo ""
 

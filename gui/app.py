@@ -1,4 +1,4 @@
-"""Streamlit GUI for batch Entra ID immutable ID lookups from CSV."""
+"""Streamlit home page: Net2 daily attendance reports."""
 
 from __future__ import annotations
 
@@ -13,220 +13,178 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from gui.azure_graph import fetch_immutable_ids, get_graph_token  # noqa: E402
-from gui.secrets import (  # noqa: E402
-    apply_streamlit_secrets,
-    default_auth_mode,
-    hosted_platform_name,
-    is_hosted_deployment,
-    service_principal_configured,
-)
+from gui.net2_attendance import parse_attendance_html  # noqa: E402
+from gui.rto_tracker import merge_attendance_into_rto_template, rows_to_csv  # noqa: E402
 
-USER_COLUMN_CANDIDATES = (
-    "userprincipalname",
-    "user_principal_name",
-    "upn",
-    "email",
-    "mail",
-    "user",
-    "username",
-    "user id",
-    "userid",
-    "objectid",
-    "object_id",
-)
+SAMPLE_HTML_PATH = ROOT / "sample_data" / "whos_been_in_today.html"
+DEFAULT_RTO_TEMPLATE_PATH = ROOT / "sample_data" / "rto_tracker_london_2025.csv"
 
 
-def detect_user_column(columns: list[str]) -> str | None:
-    normalized = {column: column.strip().lower() for column in columns}
-    for candidate in USER_COLUMN_CANDIDATES:
-        for column, column_name in normalized.items():
-            if column_name == candidate:
-                return column
-    return columns[0] if columns else None
+def load_sample_html() -> str | None:
+    if SAMPLE_HTML_PATH.is_file():
+        return SAMPLE_HTML_PATH.read_text(encoding="utf-8")
+    return None
 
 
-def results_to_dataframe(results) -> pd.DataFrame:
+def records_to_dataframe(report) -> pd.DataFrame:
     return pd.DataFrame(
         [
             {
-                "Input": result.user_identifier,
-                "Display Name": result.display_name,
-                "User Principal Name": result.user_principal_name,
-                "Immutable ID": result.on_premises_immutable_id,
-                "Status": "OK" if result.success else "Error",
-                "Error": result.error or "",
+                "Date": record.date,
+                "Department": record.department,
+                "User name": record.user_name,
             }
-            for result in results
+            for record in report.records
         ]
     )
 
 
 def main() -> None:
-    apply_streamlit_secrets()
-
     st.set_page_config(
-        page_title="Entra Immutable ID Lookup",
-        page_icon="🔐",
+        page_title="Daily Attendance",
+        page_icon="🏢",
         layout="wide",
     )
 
-    st.title("Entra Immutable ID Lookup")
-    st.caption("Upload a CSV of users and fetch onPremisesImmutableId values from Microsoft Entra ID.")
-
-    with st.sidebar:
-        st.header("Authentication")
-        if is_hosted_deployment():
-            platform = hosted_platform_name() or "hosted environment"
-            if service_principal_configured():
-                st.success(f"Connected via Azure app registration ({platform})")
-                auth_mode = "service_principal"
-            else:
-                st.error(
-                    "Azure credentials missing. Set AZURE_TENANT_ID, AZURE_CLIENT_ID, "
-                    "and AZURE_CLIENT_SECRET in app settings (App Service) or Secrets (Streamlit Cloud)."
-                )
-                auth_mode = "service_principal"
-        else:
-            auth_options = ["default", "browser"]
-            if service_principal_configured():
-                auth_options.insert(1, "service_principal")
-
-            auth_mode = st.radio(
-                "Sign-in method",
-                options=auth_options,
-                index=auth_options.index(default_auth_mode())
-                if default_auth_mode() in auth_options
-                else 0,
-                format_func=lambda value: {
-                    "default": "Default (Azure CLI / existing login)",
-                    "browser": "Interactive browser login",
-                    "service_principal": "Service principal (env vars / secrets)",
-                }[value],
-                help=(
-                    "Default uses Azure CLI credentials after `az login`. "
-                    "Service principal uses AZURE_TENANT_ID, AZURE_CLIENT_ID, and AZURE_CLIENT_SECRET."
-                ),
-            )
-
-        st.divider()
-        st.markdown(
-            """
-**Required Graph permission**
-
-- Delegated: `User.Read.All`
-- Application: `User.Read.All` (service principal)
-            """
-        )
+    st.title("Who's been in today")
+    st.caption(
+        "Upload a Net2 Access Control HTML export, then generate an updated "
+        "**RTO Tracker London - 2025 (Automation)** spreadsheet."
+    )
 
     uploaded_file = st.file_uploader(
-        "Upload CSV",
+        "Upload Net2 HTML report",
+        type=["html", "htm"],
+        help="Export from Net2 Access Control: Who's been in today.",
+    )
+
+    rto_template_file = st.file_uploader(
+        "RTO Tracker template (optional)",
         type=["csv"],
-        help="CSV should include a column with user email, UPN, or object ID.",
+        help="Defaults to the bundled London 2025 automation template if not provided.",
     )
 
-    sample_csv = """userPrincipalName
-amusa@allvuesystems.com
-jane.doe@example.com
-"""
-    with st.expander("Example CSV format"):
-        st.code(sample_csv.strip(), language="csv")
-        st.download_button(
-            "Download sample CSV",
-            data=sample_csv,
-            file_name="sample_users.csv",
-            mime="text/csv",
-        )
+    use_sample = st.checkbox("Load sample report (13 July 2026)", value=uploaded_file is None)
 
-    manual_entries = st.text_area(
-        "Or paste user identifiers (one per line)",
-        placeholder="user@example.com\nanother.user@example.com",
-    )
+    html_content: str | None = None
+    if uploaded_file is not None:
+        html_content = uploaded_file.read().decode("utf-8", errors="replace")
+    elif use_sample:
+        html_content = load_sample_html()
+        if html_content is None:
+            st.warning("Sample report file is not available in this deployment.")
 
-    if uploaded_file is None and not manual_entries.strip():
-        st.info("Upload a CSV file or paste user identifiers to begin.")
+    if html_content is None:
+        st.info("Upload a Net2 HTML report or enable the sample report to begin.")
         return
 
-    if uploaded_file is not None:
-        dataframe = pd.read_csv(uploaded_file)
-        if dataframe.empty:
-            st.error("The uploaded CSV has no rows.")
+    try:
+        report = parse_attendance_html(html_content)
+    except Exception as exc:  # noqa: BLE001 - surface parse errors in the UI
+        st.error(f"Could not parse the HTML report: {exc}")
+        return
+
+    if not report.records:
+        st.warning("No attendance records found in this report.")
+        return
+
+    title_parts = ["Who's been in today"]
+    if report.report_date:
+        title_parts.append(f"on {report.report_date}")
+    st.subheader(" ".join(title_parts))
+
+    metric_cols = st.columns(3)
+    metric_cols[0].metric("People in today", report.total_count)
+    metric_cols[1].metric("Departments", len(report.department_counts()))
+    if report.generated_at:
+        metric_cols[2].metric("Report generated", report.generated_at)
+    else:
+        metric_cols[2].metric("Report generated", "—")
+
+    dataframe = records_to_dataframe(report)
+
+    department_filter = st.multiselect(
+        "Filter by department",
+        options=sorted(dataframe["Department"].unique()),
+        default=[],
+        placeholder="All departments",
+    )
+
+    filtered = dataframe
+    if department_filter:
+        filtered = dataframe[dataframe["Department"].isin(department_filter)]
+
+    st.dataframe(filtered, use_container_width=True, hide_index=True)
+
+    with st.expander("By department"):
+        dept_df = pd.DataFrame(
+            [
+                {"Department": department, "Count": count}
+                for department, count in report.department_counts().items()
+            ]
+        )
+        st.dataframe(dept_df, use_container_width=True, hide_index=True)
+
+    st.divider()
+    st.subheader("RTO Tracker export")
+
+    template_source: str | Path
+    if rto_template_file is not None:
+        template_source = rto_template_file.getvalue().decode("utf-8-sig", errors="replace")
+    elif DEFAULT_RTO_TEMPLATE_PATH.is_file():
+        template_source = DEFAULT_RTO_TEMPLATE_PATH
+    else:
+        st.warning("Upload your RTO Tracker automation CSV template to generate the export.")
+        template_source = ""
+
+    if template_source:
+        try:
+            rto_result = merge_attendance_into_rto_template(template_source, report)
+        except Exception as exc:  # noqa: BLE001 - surface merge errors in the UI
+            st.error(f"Could not update the RTO Tracker template: {exc}")
             return
 
-        st.subheader("Preview")
-        st.dataframe(dataframe.head(20), use_container_width=True)
+        st.metric("Matched in RTO roster", rto_result.present_count)
 
-        user_column = st.selectbox(
-            "User identifier column",
-            options=list(dataframe.columns),
-            index=list(dataframe.columns).index(detect_user_column(list(dataframe.columns))),
-        )
-        user_identifiers = (
-            dataframe[user_column].dropna().astype(str).str.strip().replace("", pd.NA).dropna().tolist()
-        )
-    else:
-        user_identifiers = [
-            line.strip() for line in manual_entries.splitlines() if line.strip()
-        ]
-        user_column = "manual_input"
-
-    st.write(f"**{len(user_identifiers)}** user(s) ready to look up.")
-
-    secrets_ready = service_principal_configured() or not is_hosted_deployment()
-    if is_hosted_deployment() and not service_principal_configured():
-        st.warning("Configure Azure credentials in app settings before lookups will work.")
-
-    if st.button(
-        "Fetch immutable IDs",
-        type="primary",
-        disabled=not user_identifiers or not secrets_ready,
-    ):
-        with st.spinner("Authenticating and querying Microsoft Graph..."):
-            try:
-                token = get_graph_token(auth_mode)
-                results = fetch_immutable_ids(token, user_identifiers)
-            except Exception as exc:  # noqa: BLE001 - surface auth errors in the UI
-                st.error(f"Authentication failed: {exc}")
-                return
-
-        output = results_to_dataframe(results)
-        success_count = sum(1 for result in results if result.success)
-        error_count = len(results) - success_count
-
-        st.subheader("Results")
-        metric_cols = st.columns(3)
-        metric_cols[0].metric("Processed", len(results))
-        metric_cols[1].metric("Succeeded", success_count)
-        metric_cols[2].metric("Errors", error_count)
-
-        st.dataframe(output, use_container_width=True)
-
-        csv_buffer = io.StringIO()
-        output.to_csv(csv_buffer, index=False)
-        st.download_button(
-            "Download results CSV",
-            data=csv_buffer.getvalue(),
-            file_name="immutable_id_results.csv",
-            mime="text/csv",
+        st.write(
+            f"**{rto_result.attendee_count}** door entries applied to Step 1. "
+            f"**{rto_result.present_count}** roster rows marked present (column G). "
+            f"**{rto_result.roster_count}** people in the tracker."
         )
 
-        if uploaded_file is not None:
-            merged = dataframe.copy()
-            result_map = {
-                result.user_identifier: result.on_premises_immutable_id for result in results if result.success
-            }
-            error_map = {result.user_identifier: result.error for result in results if not result.success}
-            merged["Immutable ID"] = merged[user_column].map(result_map)
-            merged["Lookup Error"] = merged[user_column].map(error_map).fillna("")
-
-            merged_buffer = io.StringIO()
-            merged.to_csv(merged_buffer, index=False)
-            st.download_button(
-                "Download merged CSV",
-                data=merged_buffer.getvalue(),
-                file_name="users_with_immutable_ids.csv",
-                mime="text/csv",
+        if rto_result.unmatched_attendees:
+            st.info(
+                "These attendees were not found in the RTO roster: "
+                + ", ".join(rto_result.unmatched_attendees)
             )
+
+        rto_csv = rows_to_csv(rto_result.rows)
+        date_suffix = report.report_date.replace(" ", "_") if report.report_date else "today"
+        st.download_button(
+            "Download RTO Tracker CSV",
+            data=rto_csv,
+            file_name=f"RTO_Tracker_London_2025_Automation_{date_suffix}.csv",
+            mime="text/csv",
+            type="primary",
+        )
+
+        st.caption(
+            "Open the downloaded CSV in Excel or Google Sheets, or paste into your "
+            "RTO Tracker London - 2025 (Automation) workbook. Step 1 door data is in "
+            "columns A/C/D; Step 2 present flags are in column G."
+        )
+
+    csv_buffer = io.StringIO()
+    filtered.to_csv(csv_buffer, index=False)
+    st.download_button(
+        "Download raw attendance CSV",
+        data=csv_buffer.getvalue(),
+        file_name="whos_been_in_today.csv",
+        mime="text/csv",
+    )
+
+    if report.generated_at:
+        st.caption(f"Net2 Access Control {report.generated_at}")
 
 
 if __name__ == "__main__":
