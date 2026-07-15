@@ -114,6 +114,31 @@ def find_row(name: str, by_exact, by_last_first):
     return None
 
 
+def require_file(path: Path, label: str) -> Path:
+    if path.is_file():
+        return path.resolve()
+
+    cwd = Path.cwd()
+    msg = [f"Could not find {label}: {path}"]
+    if not path.is_absolute():
+        msg.append(f"  (looked in {cwd / path})")
+
+    html_files = sorted(cwd.glob("*.htm")) + sorted(cwd.glob("*.html"))
+    if html_files and label == "HTML file":
+        msg.append("HTML files in this folder:")
+        for f in html_files:
+            msg.append(f"  {f.name}")
+        msg.append(f'Try: python3 import_net2_attendance.py "{html_files[0].name}" "..." --dry-run')
+
+    xlsx_files = sorted(cwd.glob("*.xlsx"))
+    if xlsx_files and label == "Excel file":
+        msg.append("Excel files in this folder:")
+        for f in xlsx_files:
+            msg.append(f"  {f.name}")
+
+    raise SystemExit("\n".join(msg))
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("html", type=Path, help="Net2 HTML export")
@@ -121,11 +146,14 @@ def main():
     parser.add_argument("--dry-run", action="store_true", help="Preview only")
     args = parser.parse_args()
 
-    report_date, entries = parse_html(args.html)
+    html_path = require_file(args.html, "HTML file")
+    xlsx_path = require_file(args.xlsx, "Excel file")
+
+    report_date, entries = parse_html(html_path)
     if not report_date:
         raise SystemExit("Could not determine report date from HTML title.")
 
-    wb = openpyxl.load_workbook(args.xlsx)
+    wb = openpyxl.load_workbook(xlsx_path)
     sheet_name = MONTH_SHEETS[report_date.month]
     ws = wb[sheet_name]
     date_cols = build_date_column_map(ws, report_date.year, report_date.month)
@@ -150,7 +178,7 @@ def main():
         updated.append(f"{e['name']} -> {sheet_name}!{addr}")
 
     if not args.dry_run:
-        wb.save(args.xlsx)
+        wb.save(xlsx_path)
 
     print(f"Date: {report_date} -> {sheet_name}!{col}")
     print(f"Marked present: {len(updated)}")
