@@ -110,7 +110,6 @@ def main() -> None:
             )
 
         st.subheader("Your experience")
-        st.caption("1 = Strongly disagree · 3 = Neither agree nor disagree · 5 = Strongly agree")
         ratings = {
             section: render_scale_question(f"rating_{section}", question)
             for section, question in EXPERIENCE_QUESTIONS.items()
