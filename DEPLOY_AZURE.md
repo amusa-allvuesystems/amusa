@@ -1,12 +1,12 @@
 # Deploy to Azure App Service
 
-Host the immutable ID lookup GUI for your team on Azure App Service with Entra ID sign-in.
+Host the immutable ID lookup web app for your team on Azure App Service with Entra ID sign-in.
 
 **Team URL example:** `https://amusa-immutable-id.azurewebsites.net`
 
 ## Architecture
 
-- **Azure Web App for Containers** runs the Streamlit app (Docker)
+- **Azure Web App for Containers** runs the FastAPI web app (Docker)
 - **App settings** store the Graph API service principal credentials
 - **Entra authentication** (optional, recommended) restricts who can open the website
 
@@ -125,7 +125,7 @@ Restart the app:
 az webapp restart --resource-group "$RESOURCE_GROUP" --name "$APP_NAME"
 ```
 
-Open `https://${APP_NAME}.azurewebsites.net` — the GUI should load.
+Open `https://${APP_NAME}.azurewebsites.net` — the web app should load.
 
 ---
 

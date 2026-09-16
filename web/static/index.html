@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Entra Immutable ID Lookup</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Segoe+UI:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <div class="page">
+    <header class="header">
+      <div class="header-inner">
+        <div class="brand">
+          <div class="brand-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 2L3 7V17L12 22L21 17V7L12 2Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+              <path d="M12 8V16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              <path d="M9 10H15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <div>
+            <h1>Entra Immutable ID Lookup</h1>
+            <p class="subtitle">Fetch <code>onPremisesImmutableId</code> values from Microsoft Entra ID via Graph API</p>
+          </div>
+        </div>
+        <div id="auth-badge" class="auth-badge hidden"></div>
+      </div>
+    </header>
+
+    <main class="main">
+      <section class="panel setup-panel">
+        <h2>Authentication</h2>
+        <p class="panel-desc">
+          Requires Microsoft Graph permission <strong>User.Read.All</strong>
+          (delegated for local sign-in, application for hosted deployments).
+        </p>
+        <div id="auth-hosted-message" class="notice hidden"></div>
+        <label class="field-label" for="auth-mode">Sign-in method</label>
+        <select id="auth-mode" class="select"></select>
+      </section>
+
+      <section class="panel">
+        <div class="tabs" role="tablist">
+          <button class="tab active" data-tab="single" role="tab" aria-selected="true">Single user</button>
+          <button class="tab" data-tab="batch" role="tab" aria-selected="false">Batch paste</button>
+          <button class="tab" data-tab="csv" role="tab" aria-selected="false">CSV upload</button>
+        </div>
+
+        <div id="tab-single" class="tab-panel active">
+          <label class="field-label" for="single-user">User email, UPN, or object ID</label>
+          <input id="single-user" class="input" type="text" placeholder="user@example.com">
+        </div>
+
+        <div id="tab-batch" class="tab-panel">
+          <label class="field-label" for="batch-users">One identifier per line</label>
+          <textarea id="batch-users" class="textarea" rows="8" placeholder="user@example.com&#10;another.user@example.com"></textarea>
+        </div>
+
+        <div id="tab-csv" class="tab-panel">
+          <label class="field-label" for="csv-file">Upload CSV</label>
+          <div class="file-drop">
+            <input id="csv-file" type="file" accept=".csv,text/csv">
+            <p>Choose a CSV with a column containing user emails, UPNs, or object IDs.</p>
+          </div>
+          <div id="csv-column-wrap" class="hidden">
+            <label class="field-label" for="csv-column">User identifier column</label>
+            <select id="csv-column" class="select"></select>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button id="lookup-btn" class="btn btn-primary" type="button">Fetch immutable IDs</button>
+          <span id="user-count" class="user-count"></span>
+        </div>
+      </section>
+
+      <section id="alert" class="alert hidden" role="alert"></section>
+
+      <section id="results-section" class="panel hidden">
+        <div class="results-header">
+          <h2>Results</h2>
+          <div class="metrics">
+            <div class="metric"><span class="metric-value" id="metric-processed">0</span><span class="metric-label">Processed</span></div>
+            <div class="metric success"><span class="metric-value" id="metric-succeeded">0</span><span class="metric-label">Succeeded</span></div>
+            <div class="metric error"><span class="metric-value" id="metric-errors">0</span><span class="metric-label">Errors</span></div>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table id="results-table">
+            <thead>
+              <tr>
+                <th>Input</th>
+                <th>Display Name</th>
+                <th>User Principal Name</th>
+                <th>Immutable ID</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+
+        <div class="actions">
+          <button id="download-btn" class="btn btn-secondary" type="button">Download CSV</button>
+          <button id="copy-btn" class="btn btn-secondary" type="button">Copy immutable IDs</button>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <p>Uses Microsoft Graph <code>/users/{id}?$select=onPremisesImmutableId</code></p>
+    </footer>
+  </div>
+
+  <div id="loading" class="loading hidden" aria-live="polite">
+    <div class="spinner"></div>
+    <p>Querying Microsoft Graph…</p>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

@@ -11,17 +11,18 @@ Utilities for working with Microsoft Entra ID (Azure AD) immutable IDs.
 
 **Recommended for Allvue:** Azure App Service with Entra authentication → `https://your-app.azurewebsites.net`
 
-## GUI (CSV upload)
+## Web app
 
-Web UI for batch lookups from a CSV file or pasted user list.
+Modern web UI for looking up `onPremisesImmutableId` values from Microsoft Entra ID.
 
-**Important:** `http://localhost:8501` only works on the machine where you start Streamlit. If you are using a Cursor Cloud Agent, run the GUI on your own computer (clone the repo locally), not in the cloud environment.
+**Important:** `http://localhost:8000` only works on the machine where you start the app. If you are using a Cursor Cloud Agent, run the app on your own computer (clone the repo locally), not in the cloud environment.
 
 ### Quick start
 
 ```bash
-chmod +x run-gui.sh
-./run-gui.sh
+chmod +x run-web.sh
+az login
+./run-web.sh
 ```
 
 Or manually:
@@ -31,39 +32,44 @@ python3 -m venv .venv
 source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 az login
-streamlit run gui/app.py
+uvicorn web.server:app --host localhost --port 8000 --reload
 ```
 
-Wait until the terminal shows:
+Open **http://localhost:8000** in your browser.
 
-```text
-You can now view your Streamlit app in your browser.
-Local URL: http://localhost:8501
-```
+### Features
 
-Then open **http://localhost:8501** in your browser.
+- **Single user** — look up one email, UPN, or object ID
+- **Batch paste** — paste a list of identifiers (one per line)
+- **CSV upload** — upload a file and auto-detect the user column
+- **Export** — download results as CSV or copy immutable IDs to clipboard
 
-### Troubleshooting "This site can't be reached"
-
-1. **Start Streamlit first** — opening the URL before running the command above will fail.
-2. **Run locally** — Cloud Agent / remote VMs do not expose `localhost` to your browser. Clone the repo and run `./run-gui.sh` on your laptop.
-3. **Check the terminal** — if Streamlit crashed, read the error there and fix it (often missing `pip install -r requirements.txt` or `python3-venv` not installed).
-4. **Try another port** if 8501 is in use:
-
-```bash
-streamlit run gui/app.py --server.port 8502
-```
-
-1. Upload a CSV with a `userPrincipalName`, `email`, or similar column (see `sample_users.csv`)
-2. Choose the user identifier column
-3. Click **Fetch immutable IDs**
-4. Download results as CSV
-
-Authentication options in the sidebar:
+### Authentication
 
 - **Default** — uses Azure CLI after `az login`
 - **Interactive browser** — opens a browser sign-in flow
 - **Service principal** — available when `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, and `AZURE_CLIENT_SECRET` are set
+
+### Legacy Streamlit GUI
+
+The original Streamlit UI is still available:
+
+```bash
+./run-gui.sh
+```
+
+Then open **http://localhost:8501**.
+
+### Troubleshooting "This site can't be reached"
+
+1. **Start the app first** — opening the URL before running the command above will fail.
+2. **Run locally** — Cloud Agent / remote VMs do not expose `localhost` to your browser. Clone the repo and run `./run-web.sh` on your laptop.
+3. **Check the terminal** — if the server crashed, read the error there and fix it (often missing `pip install -r requirements.txt` or `python3-venv` not installed).
+4. **Try another port** if 8000 is in use:
+
+```bash
+uvicorn web.server:app --host localhost --port 8001 --reload
+```
 
 ## Get immutable ID from Azure (CLI)
 
